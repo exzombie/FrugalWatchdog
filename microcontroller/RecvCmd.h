@@ -49,6 +49,10 @@ class RecvCmd
 	return cmd;
     }
 
+    byte bufferLen() const {
+	return lastChar;
+    }
+
     // Get the list of known commands.
     const char* commands() const {
 	return cmdStrings;
@@ -79,9 +83,11 @@ char RecvCmd<recvBufferSize, maxCommands>::addChar(char c)
 	lastChar = (lastChar + 1) % recvBufferSize;
     } else {
 	// We have a newline, let's see which command we've got.
-	for (byte i = 0; i < numCmds; ++i) {
-	    if (0 == strcmp_P(cmd, cmdStrings[i])) {
-		return i;
+	if (maxCommands) {
+	    for (byte i = 0; i < numCmds; ++i) {
+		if (0 == strcmp_P(cmd, cmdStrings[i])) {
+		    return i;
+		}
 	    }
 	}
 	// None found, error out.

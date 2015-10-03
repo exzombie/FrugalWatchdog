@@ -9,77 +9,133 @@ extern "C" {
 #include <util/delay.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <util/atomic.h>
 
 using byte = unsigned char;
 
-// List of commands, terminated by the "invalid" handler.
-enum class Command: byte
-{
-    ledOn,
-    ledOff,
-    ledBlinkMs,
-    _enumSize
-};
-
 // Declaration of commands.
 using CommandFunc = void (*)();
-static void _cmd_ledOn();
-static void _cmd_ledOff();
-static void _cmd_ledBlinkMs();
+static void _cmd_setTimeout();
+static void _cmd_start();
+static void _cmd_stop();
+static void _cmd_reset();
+static void _cmd_status();
 
-// Command names to be received, indexed by the command enum.
-static const char _cmd1_string[] PROGMEM = "led on";
-static const char _cmd2_string[] PROGMEM = "led off";
-static const char _cmd3_string[] PROGMEM = "blink";
+// Command names to be received.
+static const char _cmd1_string[] PROGMEM = "timeout";
+static const char _cmd2_string[] PROGMEM = "start";
+static const char _cmd3_string[] PROGMEM = "stop";
+static const char _cmd4_string[] PROGMEM = "reset";
+static const char _cmd5_string[] PROGMEM = "status";
 static const char* const commandStrings[] = {
     _cmd1_string,
     _cmd2_string,
     _cmd3_string,
+    _cmd4_string,
+    _cmd5_string,
 };
 
 #define CMDNUM (sizeof(commandStrings) / sizeof(char*))
 
-// A list of commands, indexed by the command enum.
+// The list of commands for easier calling.
 static const CommandFunc commands[] = {
-    _cmd_ledOn,
-    _cmd_ledOff,
-    _cmd_ledBlinkMs,
+    _cmd_setTimeout,
+    _cmd_start,
+    _cmd_stop,
+    _cmd_reset,
+    _cmd_status,
 };
 
-// Sanity checks for command list consistency.
+// Sanity check for command list consistency.
 static_assert(sizeof(commands) / sizeof(CommandFunc) == CMDNUM,
 	      "Sizes of command_strings and commands differ.");
-static_assert(CMDNUM == (byte)Command::_enumSize,
-	      "Sizes of Command and commandStrings differ.");
 
-static const char newline[] PROGMEM = "\n\r";
 
-FastPin<4> led;
+static void writeEEPROM(byte address, const char* source, byte length)
+{
+   EECR = 0;
+   EEAR = address;
+   for (byte i = 0; i < length; ++i) {
+       EEDR = source[i];
+       FAST_SET(EECR, EEMPE);
+       FAST_SET(EECR, EEPE);
+       while (FAST_GET(EECR, EEPE));
+       EEAR = ++address;
+   }
+}
+
+static void write1EEPROM(byte address, byte c)
+{
+    EECR = 0;
+    EEAR = address;
+    EEDR = c;
+    FAST_SET(EECR, EEMPE);
+    FAST_SET(EECR, EEPE);
+    while (FAST_GET(EECR, EEPE));
+}
+
+static inline byte read1EEPROM(byte address)
+{
+    EEAR = address;
+    FAST_SET(EECR, EERE);
+    return EEDR;
+}
+
+/*
+static void readEEPROM(byte address, char* dest, byte length)
+{
+    EEAR = address;
+    for (byte i = 0; i < length; ++i) {
+        FAST_SET(EECR, EERE);
+        dest[i] = EEDR;
+        ++EEAR;
+    }
+}
+*/
+
+static const unsigned long timerTick_us = 499712;
+
+// Variables shared between subroutines.
+static FastPin<4> resetPin;
+static unsigned long timeoutTicks = 0;
+static unsigned long ticks = 0;
+
+// The timestamp is meant to be seconds from epoch in decimal, but can
+// be anything really.
+static char lastTimestamp[15];
 
 int main()
 {
-    char tmp[10];
-    RecvCmd<10, 3> cmdReceiver;
+    resetPin.high();
+    resetPin.output();
+
+    // Ensure that whatever is in the EEPROM is null-terminated. If it
+    // wasn't yet, we have just been flashed so set the stored
+    // timestamp to a null string.
+    if (0 != read1EEPROM(sizeof(lastTimestamp))) {
+	write1EEPROM(sizeof(lastTimestamp), 0);
+	write1EEPROM(0, 0);
+    }
 
     softuart_init();
+
+    // Setup Timer1.
+    TCCR1 = 15;  // Prescaler period 2^14.
+    FAST_SET(TCCR1, CTC1);  // CTC mode with OCR1C register.
+    // Set the counter interval to 244, which produces the period of
+    // just under half a second (timerTick_us).
+    OCR1C = 244;
+    OCR1A = 244;
+    // Timer1 interrupt will only be enabled once the timeout is known.
+
     sei();
 
     _delay_ms(2000);
-    softuart_puts_P("Commands: ");
-    sprintf(tmp, "%d", CMDNUM);
-    softuart_puts(tmp);
-    softuart_puts_p(newline);
+    RecvCmd<16, CMDNUM> cmdReceiver;
+    softuart_puts_P("\r\nSimple Watchdog started.\r\n");
     for (byte i = 0; i < CMDNUM; ++i) {
 	cmdReceiver.addCommand_P(commandStrings[i]);
-	softuart_puts_P("   ");
-	softuart_puts_p(commandStrings[i]);
-	softuart_puts_p(newline);
     }
-    softuart_puts_P("You should enable local echo.\r\n");
-    softuart_puts_p(newline);
-
-    led.output();
-    led.low();
 
     softuart_turn_rx_on();
     for (;;) {
@@ -96,36 +152,72 @@ int main()
     return 0;
 }
 
-void _cmd_ledOn()
+ISR(TIM1_COMPA_vect, ISR_NOBLOCK)
 {
-    softuart_puts_P("Turning LED on.\n\r");
-    led.high();
-}
-
-void _cmd_ledOff()
-{
-    softuart_puts_P("Turning LED off.\n\r");
-    led.low();
-}
-
-void _cmd_ledBlinkMs()
-{
-    softuart_puts_P("Specify the number of ms or 'default': ");
-    RecvCmd<10, 1> cmdReceiver;
-    cmdReceiver.addCommand_P(PSTR("default"));
-    char status;
-    while (-1 == (status = cmdReceiver.addChar(softuart_getchar())));
-    if (status == 0) {
-	led.toggle();
-	_delay_ms(1333);
-	led.toggle();
-    } else {
-	int ms = strtol(cmdReceiver.buffer(), 0, 0);
-	if (ms < 0)
-	    return;
-	led.toggle();
-	for (int i = 0; i < ms; ++i)
-	    _delay_ms(1);
-	led.toggle();
+    if (++ticks > timeoutTicks) {
+	// Timeout occured, record the timestamp and reset the machine.
+	FAST_CLR(TIMSK, OCIE1A);
+	ticks = 0;
+	byte n = strlen(lastTimestamp);
+	writeEEPROM(0, lastTimestamp, n);
+	write1EEPROM(n, 0);
+	resetPin.low();
+	_delay_ms(1000);
+	resetPin.high();
     }
+}
+
+static void _cmd_setTimeout()
+{
+    RecvCmd<10, 0> timeoutReceiver;
+    while (-1 == timeoutReceiver.addChar(softuart_getchar()));
+    unsigned int seconds = strtol(timeoutReceiver.buffer(), 0, 0);
+    timeoutTicks = seconds * 1000000 / timerTick_us;
+}
+
+static void _cmd_start()
+{
+    if (!timeoutTicks)
+    	return;
+    TCNT1 = 0;
+    FAST_SET(TIMSK, OCIE1A);  // Interrupt on match with OCR1A.
+}
+
+static void _cmd_stop()
+{
+    FAST_CLR(TIMSK, OCIE1A);
+}
+
+static void _cmd_reset()
+{
+    char c = 0;
+    byte i = 0;
+    while ('\r' != (c = softuart_getchar())) {
+	if (c == '\n')
+	    continue;
+	lastTimestamp[i] = c;
+	i = (i + 1) % sizeof(lastTimestamp);
+    }
+
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+	ticks = 0;
+    }
+}
+
+static void _cmd_status()
+{
+    unsigned long elapsed;
+    ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+	elapsed = ticks;
+    }
+    elapsed = elapsed * timerTick_us / 1000000;
+    char tmp[10];
+    sprintf(tmp, "%ld\r\n", elapsed);
+    softuart_puts(tmp);
+
+    // Print the last stored timestamp.
+    byte c, i = 0;
+    while ((c = read1EEPROM(i++)))
+	softuart_putchar(c);
+    softuart_puts_P("\r\n");
 }

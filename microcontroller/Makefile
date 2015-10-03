@@ -4,7 +4,7 @@ MCU_TARGET     = attiny45
 AVRDUDE_PORT   = /dev/ttyACM0
 AVRDUDE_TARGET = t45
 AVRDUDE_PRG    = arduino
-OPTIMIZE       = -Os #-flto -fuse-linker-plugin
+OPTIMIZE       = -Os -flto -fuse-linker-plugin
 DEFS           = -DF_CPU=8000000UL
 LIBS           = 
 AVRDUDE        = avrdude -P $(AVRDUDE_PORT) -b 19200 -c $(AVRDUDE_PRG) -p $(AVRDUDE_TARGET)

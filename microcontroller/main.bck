@@ -1,0 +1,151 @@
+#include "FastPin.h"
+extern "C" {
+#include "softuart.h"
+}
+#include <string.h>
+#include <stdio.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+#include <avr/pgmspace.h>
+
+using byte = unsigned char;
+
+// List of commands, terminated by the "invalid" handler.
+enum class command: byte
+{
+    led_on,
+    led_off,
+    invalid
+};
+
+// Declaration of commands.
+typedef void(*command_func)(void);
+static void _cmd_invalid();
+static void _cmd_led_on();
+static void _cmd_led_off();
+
+// Command names to be received, indexed by the command enum.
+static const char _cmd1_string[] PROGMEM = "led on";
+static const char _cmd2_string[] PROGMEM = "led off";
+static const char* const command_strings[] = {
+    _cmd1_string,
+    _cmd2_string
+};
+
+#define CMDNUM (sizeof(command_strings) / sizeof(char*))
+
+// A list of commands, indexed by the command enum.
+static const command_func commands[] = {
+    _cmd_led_on,
+    _cmd_led_off,
+    _cmd_invalid
+};
+
+// Sanity checks for command list consistency.
+static_assert(sizeof(commands) / sizeof(command_func) == CMDNUM + 1,
+	      "Sizes of command_strings and commands differ.");
+static_assert(CMDNUM == (byte)command::invalid,
+	      "Sizes of command and command_strings differ.");
+
+// Command receive buffer.
+static char cmd[CMDSIZE+1];
+static byte last_char = 0;
+static bool await_newline = false;
+
+// Reset the command buffer and start from beggining.
+void reset_cmd()
+{
+    for (byte i = 0; i < CMDSIZE+1; ++i)
+	cmd[i] = 0;
+    last_char = 0;
+    await_newline = false;
+    softuart_flush_input_buffer();
+}
+
+static const char newline[] PROGMEM = "\n\r";
+
+FastPin<4> led;
+
+int main()
+{
+    softuart_init();
+    sei();
+
+    _delay_ms(1000);
+    softuart_puts_P("Commands: ");
+    sprintf(cmd, "%d", CMDNUM);
+    softuart_puts(cmd);
+    softuart_puts_p(newline);
+    for (byte i = 0; i < CMDNUM; ++i) {
+	softuart_puts_p(command_strings[i]);
+	softuart_puts_p(newline);
+    }
+    softuart_puts_p(newline);
+
+    led.output();
+    led.low();
+
+    softuart_turn_rx_on();
+    for (;;) {
+	cmd[last_char] = softuart_getchar();
+	softuart_putchar(cmd[last_char]);
+
+	// See how many commands are matched by the string captured
+	// thus far.
+	byte command_candidates = 0;
+	command choice;
+	for (byte i = 0; i < CMDNUM; ++i) {
+	    if (0 == strncmp_P(cmd, command_strings[i], last_char+1)) {
+		command_candidates++;
+		choice = (command)i;
+	    }
+	}
+
+	if (command_candidates == 0) {
+	    // The number of candidate commands has just become
+	    // zero. Either a command was finished with a newline, or
+	    // we got garbage.
+	    if (! (cmd[last_char] == '\n' || cmd[last_char] == '\r')) {
+		// Useless string.
+		softuart_puts_p(newline);
+		commands[(byte)command::invalid]();
+		reset_cmd();
+	    } else {
+		// We have a newline, find the command again.
+		choice = command::invalid;
+		if (last_char != 0) {
+		    for (byte i = 0; i < CMDNUM; ++i) {
+			if (0 == strncmp_P(cmd, command_strings[i], last_char)
+			    && strlen_P(command_strings[i]) == last_char) {
+			    //			    && 0 == pgm_read_byte(command_strings[i]+last_char+1)) {
+			    choice = (command)i;
+			}
+		    }
+		}
+		commands[(byte)choice]();
+		reset_cmd();
+	    }
+	} else {
+	    last_char = (last_char + 1) % CMDSIZE;
+	}
+    }
+    return 0;
+}
+
+void _cmd_invalid()
+{
+    static const char error_msg[] PROGMEM = "Invalid command!\n\r";
+    softuart_puts_p(error_msg);
+}
+
+void _cmd_led_on()
+{
+    softuart_puts_P("Turning LED on.\n\r");
+    led.high();
+}
+
+void _cmd_led_off()
+{
+    softuart_puts_P("Turning LED off.\n\r");
+    led.low();
+}

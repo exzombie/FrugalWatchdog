@@ -212,11 +212,22 @@ static void _cmd_status()
     }
     elapsed = elapsed * timerTick_us / 1000000;
     char tmp[10];
-    sprintf(tmp, "%ld\r\n", elapsed);
-    softuart_puts(tmp);
+    byte i;
+    if (elapsed) {
+	tmp[sizeof(tmp)-1] = 0;
+	for (i = sizeof(tmp)-2; i > 0 && elapsed > 0; --i) {
+	    tmp[i] = '0' + elapsed % 10;
+	    elapsed /= 10;
+	}
+	softuart_puts(tmp + i + 1);
+    } else {
+	softuart_putchar('0');
+    }
+    softuart_puts_P("\r\n");
 
     // Print the last stored timestamp.
-    byte c, i = 0;
+    byte c;
+    i = 0;
     while ((c = read1EEPROM(i++)))
 	softuart_putchar(c);
     softuart_puts_P("\r\n");

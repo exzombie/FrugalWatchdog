@@ -198,6 +198,7 @@ static void _cmd_reset()
 	lastTimestamp[i] = c;
 	i = (i + 1) % sizeof(lastTimestamp);
     }
+    lastTimestamp[i] = 0;
 
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 	ticks = 0;

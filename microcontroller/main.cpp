@@ -97,7 +97,9 @@ static const unsigned long timerTick_us = 499712;
 
 // Variables shared between subroutines.
 static FastPin<4> resetPin;
-static unsigned long timeoutTicks = 0;
+
+// Set default timeout of one minute.
+static unsigned long timeoutTicks = 60 * 1000000 / timerTick_us;;
 static unsigned long ticks = 0;
 
 // The timestamp is meant to be seconds from epoch in decimal, but can
@@ -203,6 +205,10 @@ static void _cmd_reset()
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 	ticks = 0;
     }
+
+    // Reset also starts the watchdog. This way, it will also function
+    // with no configuration.
+    _cmd_start();
 }
 
 static void _cmd_status()

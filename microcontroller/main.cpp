@@ -132,7 +132,7 @@ int main()
 
     _delay_ms(2000);
     RecvCmd<16, CMDNUM> cmdReceiver;
-    softuart_puts_P("\r\nSimple Watchdog started.\r\n");
+    softuart_puts_P("\r\nFrugal Watchdog started.\r\n");
     for (byte i = 0; i < CMDNUM; ++i) {
 	cmdReceiver.addCommand_P(commandStrings[i]);
     }

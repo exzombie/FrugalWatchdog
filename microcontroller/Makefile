@@ -1,4 +1,4 @@
-PRG            = SimpleWatchdog
+PRG            = FrugalWatchdog
 OBJ            = main.o softuart.o
 MCU_TARGET     = attiny45
 AVRDUDE_PORT   = /dev/ttyACM0

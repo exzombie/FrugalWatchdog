@@ -1,0 +1,21 @@
+#!/bin/sh
+
+serial=/dev/ttyUSB0
+
+stty 2400 igncr < "$serial" || exit $?
+
+if [ -z "$1" ] || [ "$1" = "reset" ] || [ "$1" = "start" ] ; then
+    printf "reset\r%s\r" "$(date +%s)" > "$serial"
+elif [ "$1" = "timeout" ] && [ -n "$2" ] ; then
+    printf "timeout\r%s\r" "$2" > "$serial"
+elif [ "$1" = "status" ] ; then
+    exec 3< "$serial"
+    printf "status\r" > "$serial"
+    read line <&3
+    printf "Elapsed: %s s\n" $line
+    read line <&3
+    d=$(date -d @"$line")
+    printf "Watchdog was last triggered at: %s\n" "$d"
+elif [ "$1" = "stop" ] ; then
+    printf "stop\r" > "$serial"
+fi

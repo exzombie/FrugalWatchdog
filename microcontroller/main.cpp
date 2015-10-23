@@ -96,7 +96,8 @@ static void readEEPROM(byte address, char* dest, byte length)
 static const unsigned long timerTick_us = 499712;
 
 // Variables shared between subroutines.
-static FastPin<4> resetPin;
+static FastPin<4> ledPin;
+static FastPin<3> resetPin;
 
 // Set default timeout of one minute.
 static unsigned long timeoutTicks = 60 * 1000000 / timerTick_us;;
@@ -110,6 +111,8 @@ int main()
 {
     resetPin.high();
     resetPin.output();
+    ledPin.low();
+    ledPin.output();
 
     // Ensure that whatever is in the EEPROM is null-terminated. If it
     // wasn't yet, we have just been flashed so set the stored
@@ -169,6 +172,7 @@ ISR(TIM1_COMPA_vect, ISR_NOBLOCK)
 	byte n = strlen(lastTimestamp);
 	writeEEPROM(0, lastTimestamp, n);
 	write1EEPROM(n, 0);
+	ledPin.high();
 	resetPin.low();
 	_delay_ms(1000);
 	resetPin.high();
@@ -189,6 +193,7 @@ static void _cmd_start()
     	return;
     TCNT1 = 0;
     FAST_SET(TIMSK, OCIE1A);  // Interrupt on match with OCR1A.
+    ledPin.low();
 }
 
 static void _cmd_stop()

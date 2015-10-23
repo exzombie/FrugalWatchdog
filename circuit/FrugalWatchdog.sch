@@ -68,9 +68,9 @@ $EndComp
 Text Notes 3050 3800 0    60   ~ 0
 GND
 Text Notes 3050 3700 0    60   ~ 0
-RXD
-Text Notes 3050 3600 0    60   ~ 0
 TXD
+Text Notes 3050 3600 0    60   ~ 0
+RXD
 Text Notes 3050 3500 0    60   ~ 0
 3V3
 Text Notes 3050 3400 0    60   ~ 0
@@ -99,8 +99,6 @@ Wire Wire Line
 	3550 3200 4050 3200
 Wire Wire Line
 	3550 3600 3050 3600
-Wire Wire Line
-	4050 3700 4050 4100
 Wire Wire Line
 	3600 3300 4050 3300
 Wire Wire Line
@@ -146,7 +144,6 @@ Wire Wire Line
 	3600 4000 3600 4100
 Wire Wire Line
 	3600 4100 6750 4100
-Connection ~ 4050 4100
 Wire Wire Line
 	3900 3600 4050 3600
 NoConn ~ 4050 3400
@@ -160,4 +157,9 @@ Wire Wire Line
 	3550 3200 3550 3600
 Wire Wire Line
 	3600 3700 3600 3300
+Wire Wire Line
+	4050 3700 3650 3700
+Wire Wire Line
+	3650 3700 3650 2950
+Connection ~ 3650 2950
 $EndSCHEMATC

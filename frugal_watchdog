@@ -2,9 +2,31 @@
 
 serial=/dev/ttyUSB0
 
+if [ "$1" == "-h" ] ; then
+    cat 1>&2 <<EOF
+FrugalWatchdog helper script.
+Parameters:
+
+  timeout <seconds>
+  start
+  stop
+  reset
+  status
+
+Running without parameters implies 'start' and 'reset'. The 'status'
+command will print the elapsed time and the time of last reset using
+the time format of your current locale.
+
+Parameters 'test' and 'repair' are aliased to 'reset' for compatibility
+with the watchdog(8) daemon. This script can be dropped in the
+/etc/watchdog.d/ directory.
+EOF
+fi
+
 stty 2400 igncr < "$serial" || exit $?
 
-if [ -z "$1" ] || [ "$1" = "reset" ] || [ "$1" = "start" ] ; then
+if [ -z "$1" ] || [ "$1" = "reset" ] || [ "$1" = "start" ] \
+   || [ "$1" = "test" ] || [ "$1" = "repair" ] ; then
     printf "reset\r%s\r" "$(date +%s)" > "$serial"
 elif [ "$1" = "timeout" ] && [ -n "$2" ] ; then
     printf "timeout\r%s\r" "$2" > "$serial"

@@ -109,8 +109,8 @@ static char lastTimestamp[15];
 
 int main()
 {
-    resetPin.high();
-    resetPin.output();
+    resetPin.low();
+    resetPin.input();
     ledPin.low();
     ledPin.output();
 
@@ -173,9 +173,9 @@ ISR(TIM1_COMPA_vect, ISR_NOBLOCK)
 	writeEEPROM(0, lastTimestamp, n);
 	write1EEPROM(n, 0);
 	ledPin.high();
-	resetPin.low();
+	resetPin.output();
 	_delay_ms(1000);
-	resetPin.high();
+	resetPin.input();
     }
 }
 

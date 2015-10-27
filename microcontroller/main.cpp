@@ -165,10 +165,11 @@ int main()
 
 ISR(TIM1_COMPA_vect, ISR_NOBLOCK)
 {
+    ledPin.toggle();
     if (++ticks > timeoutTicks) {
 	// Timeout occured, record the timestamp and reset the machine.
 	FAST_CLR(TIMSK, OCIE1A);
-	ticks = 0;
+	ticks = timeoutTicks;
 	byte n = strlen(lastTimestamp);
 	writeEEPROM(0, lastTimestamp, n);
 	write1EEPROM(n, 0);
@@ -199,6 +200,7 @@ static void _cmd_start()
 static void _cmd_stop()
 {
     FAST_CLR(TIMSK, OCIE1A);
+    ledPin.low();
 }
 
 static void _cmd_reset()

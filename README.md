@@ -65,7 +65,7 @@ prefixed with `<`, comments begin with `#`):
     > timeout  # set the timeout
     > 10       # provide the argument on a separate line
     # nothing is printed back unless we mistyped a command
-    > start    # start the countdown
+    > start    # start the countdown, LED starts blinking
     # wait a second or two
     > status
     < 3        # we obviously waited three seconds
@@ -76,9 +76,9 @@ prefixed with `<`, comments begin with `#`):
     > status
     < 1
     <          # still no timeout string
-    # wait until the timeout expires; the LED will light up
+    # wait until the timeout expires; the LED remains on
     > status
-    < 0        # the watchdog is stopped, counter is at zero
+    < 9        # the watchdog is stopped, counter is at timeout (rounded down)
     < TESTING  # the timeout string given at the last reset is printed back
     
 As you can see, the `status` command prints the string that was given

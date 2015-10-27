@@ -52,7 +52,9 @@ recognizes the following commands:
      reset. Implies `start`. Sets the timeout string, see below.
 
   - `status`: prints the elapsed time since the last reset and prints
-    the last timeout string.
+     the last timeout string.
+
+  - `clearmem`: clears the last timeout string from memory.
 
 The `timeout` and `reset` commands take an argument. It is not passed
 on the same line, but on the next one. For example, a testing session

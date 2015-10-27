@@ -12,6 +12,7 @@ Parameters:
   stop
   reset
   status
+  clearmem
 
 Running without parameters implies 'start' and 'reset'. The 'status'
 command will print the elapsed time and the time of last reset using
@@ -40,4 +41,6 @@ elif [ "$1" = "status" ] ; then
     printf "Watchdog was last triggered at: %s\n" "$d"
 elif [ "$1" = "stop" ] ; then
     printf "stop\r" > "$serial"
+elif [ "$1" = "clearmem" ] ; then
+    printf "clearmem\r" > "$serial"
 fi

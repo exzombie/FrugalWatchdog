@@ -20,6 +20,7 @@ static void _cmd_start();
 static void _cmd_stop();
 static void _cmd_reset();
 static void _cmd_status();
+static void _cmd_clearmem();
 
 // Command names to be received.
 static const char _cmd1_string[] PROGMEM = "timeout";
@@ -27,12 +28,14 @@ static const char _cmd2_string[] PROGMEM = "start";
 static const char _cmd3_string[] PROGMEM = "stop";
 static const char _cmd4_string[] PROGMEM = "reset";
 static const char _cmd5_string[] PROGMEM = "status";
+static const char _cmd6_string[] PROGMEM = "clearmem";
 static const char* const commandStrings[] = {
     _cmd1_string,
     _cmd2_string,
     _cmd3_string,
     _cmd4_string,
     _cmd5_string,
+    _cmd6_string,
 };
 
 #define CMDNUM (sizeof(commandStrings) / sizeof(char*))
@@ -44,6 +47,7 @@ static const CommandFunc commands[] = {
     _cmd_stop,
     _cmd_reset,
     _cmd_status,
+    _cmd_clearmem,
 };
 
 // Sanity check for command list consistency.
@@ -118,8 +122,7 @@ int main()
     // wasn't yet, we have just been flashed so set the stored
     // timestamp to a null string.
     if (0 != read1EEPROM(sizeof(lastTimestamp))) {
-	write1EEPROM(sizeof(lastTimestamp), 0);
-	write1EEPROM(0, 0);
+	_cmd_clearmem();
     }
 
     softuart_init();
@@ -251,4 +254,10 @@ static void _cmd_status()
     while ((c = read1EEPROM(i++)))
 	softuart_putchar(c);
     softuart_puts_P("\r\n");
+}
+
+static void _cmd_clearmem()
+{
+    write1EEPROM(sizeof(lastTimestamp), 0);
+    write1EEPROM(0, 0);
 }

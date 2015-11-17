@@ -23,6 +23,7 @@ Parameters 'test' and 'repair' are aliased to 'reset' for compatibility
 with the watchdog(8) daemon. This script can be dropped in the
 /etc/watchdog.d/ directory.
 EOF
+exit
 fi
 
 exec 3<> "$serial" || exit $?

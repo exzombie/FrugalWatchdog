@@ -24,23 +24,23 @@ with the watchdog(8) daemon. This script can be dropped in the
 EOF
 fi
 
-stty 2400 igncr < "$serial" || exit $?
+exec 3<> "$serial" || exit $?
+stty 2400 hupcl igncr < "$serial" || exit $?
 
 if [ -z "$1" ] || [ "$1" = "reset" ] || [ "$1" = "start" ] \
    || [ "$1" = "test" ] || [ "$1" = "repair" ] ; then
-    printf "reset\r%s\r" "$(date +%s)" > "$serial"
+    printf "reset\r%s\r" "$(date +%s)" >&3
 elif [ "$1" = "timeout" ] && [ -n "$2" ] ; then
-    printf "timeout\r%s\r" "$2" > "$serial"
+    printf "timeout\r%s\r" "$2" >&3
 elif [ "$1" = "status" ] ; then
-    exec 3< "$serial"
-    printf "status\r" > "$serial"
+    printf "status\r" >&3
     read line <&3
     printf "Elapsed: %s s\n" $line
     read line <&3
     d=$(date -d @"$line")
     printf "Watchdog was last triggered at: %s\n" "$d"
 elif [ "$1" = "stop" ] ; then
-    printf "stop\r" > "$serial"
+    printf "stop\r" >&3
 elif [ "$1" = "clearmem" ] ; then
-    printf "clearmem\r" > "$serial"
+    printf "clearmem\r" >&3
 fi

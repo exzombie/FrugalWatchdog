@@ -3,7 +3,7 @@
 serial=/dev/ttyUSB0
 timeout=1
 
-if [ "$1" == "-h" ] ; then
+if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     cat 1>&2 <<EOF
 FrugalWatchdog helper script.
 Parameters:

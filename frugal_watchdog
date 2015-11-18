@@ -29,23 +29,30 @@ fi
 exec 3<> "$serial" || exit $?
 stty 2400 hupcl igncr -icrnl -opost -isig -icanon -iexten -echo < "$serial" || exit $?
 
+write_serial() {
+    printf "$@" >&3
+    # Give the device time to handle the message. Giving two commands in too
+    # quick a succession tends to confuse it.
+    sleep 0.1
+}
+
 # Discard any data that might be in the serial buffer.
 read -t 0.1 <&3
 
 if [ -z "$1" ] || [ "$1" = "reset" ] || [ "$1" = "start" ] \
    || [ "$1" = "test" ] || [ "$1" = "repair" ] ; then
-    printf "reset\r%s\r" "$(date +%s)" >&3
+    write_serial "reset\r%s\r" "$(date +%s)"
 elif [ "$1" = "timeout" ] && [ -n "$2" ] ; then
-    printf "timeout\r%s\r" "$2" >&3
+    write_serial "timeout\r%s\r" "$2"
 elif [ "$1" = "status" ] ; then
-    printf "status\r" >&3
+    write_serial "status\r"
     read -t "$timeout" line <&3 || exit $?
     printf "Elapsed: %s s\n" $line
     read -t "$timeout" line <&3 || exit $?
     d=$(date -d @"$line")
     printf "Watchdog was last triggered at: %s\n" "$d"
 elif [ "$1" = "stop" ] ; then
-    printf "stop\r" >&3
+    write_serial "stop\r"
 elif [ "$1" = "clearmem" ] ; then
-    printf "clearmem\r" >&3
+    write_serial "clearmem\r"
 fi

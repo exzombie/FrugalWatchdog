@@ -1,6 +1,7 @@
 #!/bin/sh
 
 serial=/dev/ttyUSB0
+timeout=1
 
 if [ "$1" == "-h" ] ; then
     cat 1>&2 <<EOF
@@ -22,25 +23,29 @@ Parameters 'test' and 'repair' are aliased to 'reset' for compatibility
 with the watchdog(8) daemon. This script can be dropped in the
 /etc/watchdog.d/ directory.
 EOF
+exit
 fi
 
-stty 2400 igncr < "$serial" || exit $?
+exec 3<> "$serial" || exit $?
+stty 2400 hupcl igncr < "$serial" || exit $?
+
+# Discard any data that might be in the serial buffer.
+read -t 0.1 <&3
 
 if [ -z "$1" ] || [ "$1" = "reset" ] || [ "$1" = "start" ] \
    || [ "$1" = "test" ] || [ "$1" = "repair" ] ; then
-    printf "reset\r%s\r" "$(date +%s)" > "$serial"
+    printf "reset\r%s\r" "$(date +%s)" >&3
 elif [ "$1" = "timeout" ] && [ -n "$2" ] ; then
-    printf "timeout\r%s\r" "$2" > "$serial"
+    printf "timeout\r%s\r" "$2" >&3
 elif [ "$1" = "status" ] ; then
-    exec 3< "$serial"
-    printf "status\r" > "$serial"
-    read line <&3
+    printf "status\r" >&3
+    read -t "$timeout" line <&3 || exit $?
     printf "Elapsed: %s s\n" $line
-    read line <&3
+    read -t "$timeout" line <&3 || exit $?
     d=$(date -d @"$line")
     printf "Watchdog was last triggered at: %s\n" "$d"
 elif [ "$1" = "stop" ] ; then
-    printf "stop\r" > "$serial"
+    printf "stop\r" >&3
 elif [ "$1" = "clearmem" ] ; then
-    printf "clearmem\r" > "$serial"
+    printf "clearmem\r" >&3
 fi

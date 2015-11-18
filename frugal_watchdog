@@ -27,7 +27,7 @@ exit
 fi
 
 exec 3<> "$serial" || exit $?
-stty 2400 hupcl igncr < "$serial" || exit $?
+stty 2400 hupcl igncr -icrnl -opost -isig -icanon -iexten -echo < "$serial" || exit $?
 
 # Discard any data that might be in the serial buffer.
 read -t 0.1 <&3

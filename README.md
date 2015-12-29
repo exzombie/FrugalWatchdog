@@ -51,8 +51,8 @@ recognizes the following commands:
   - `reset`: resets the countdown, i.e. it postpones the machine
      reset. Implies `start`. Sets the timeout string, see below.
 
-  - `status`: prints the elapsed time since the last reset and prints
-     the last timeout string.
+  - `status`: prints the elapsed time since the last reset, the
+     timeout and the last timeout string.
 
   - `clearmem`: clears the last timeout string from memory.
 
@@ -62,7 +62,7 @@ might look like this (input lines prefixed with `>`, printed lines
 prefixed with `<`, comments begin with `#`):
 
     > status   # request the state
-    < 0        # watchdog is not running, timer is at 0
+    < 0 / 60   # watchdog is not running, timer is at 0 and timeout is set to 60
     <          # we just flashed the firmware, no timeout string present
     > timeout  # set the timeout
     > 10       # provide the argument on a separate line
@@ -70,19 +70,19 @@ prefixed with `<`, comments begin with `#`):
     > start    # start the countdown, LED starts blinking
     # wait a second or two
     > status
-    < 3        # we obviously waited three seconds
+    < 3 / 10   # we obviously waited three seconds
     <          # still no timeout string is set
     > reset    # reset the timer
     > TESTING  # arbitrary text at most 14 characters in length
     # wait a second
     > status
-    < 1
+    < 1 / 10
     <          # still no timeout string
     # wait until the timeout expires; the LED remains on
     > status
-    < 9        # the watchdog is stopped, counter is at timeout (rounded down)
+    < 9 / 10   # the watchdog is stopped, counter is at timeout (rounded down)
     < TESTING  # the timeout string given at the last reset is printed back
-    
+
 As you can see, the `status` command prints the string that was given
 at the last `reset` command before the timeout. This string is stored
 in persistent memory and will not disappear if power is lost. This

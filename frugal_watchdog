@@ -15,9 +15,8 @@ Parameters:
   status
   clearmem
 
-Running without parameters implies 'start' and 'reset'. The 'status'
-command will print the elapsed time and the time of last reset using
-the time format of your current locale.
+The 'status' command will print the elapsed time, the timeout and the
+time of last reset using the time format of your current locale.
 
 Parameters 'test' and 'repair' are aliased to 'reset' for compatibility
 with the watchdog(8) daemon. This script can be dropped in the
@@ -46,10 +45,10 @@ elif [ "$1" = "timeout" ] && [ -n "$2" ] ; then
     write_serial "timeout\r%s\r" "$2"
 elif [ "$1" = "status" ] ; then
     write_serial "status\r"
+    read -t "$timeout" elapsed slash timeoutval <&3 || exit $?
+    printf "Elapsed / timeout: %s s / %s s\n" "$elapsed" "$timeoutval"
     read -t "$timeout" line <&3 || exit $?
-    printf "Elapsed: %s s\n" $line
-    read -t "$timeout" line <&3 || exit $?
-    d=$(date -d @"$line")
+    d=$(date -d @"${line:-0}")
     printf "Watchdog was last triggered at: %s\n" "$d"
 elif [ "$1" = "stop" ] ; then
     write_serial "stop\r"

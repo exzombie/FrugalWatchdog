@@ -225,6 +225,21 @@ static void _cmd_reset()
     _cmd_start();
 }
 
+static void printnum(unsigned long number) {
+    char tmp[10];
+    byte i;
+    if (number) {
+	tmp[sizeof(tmp)-1] = 0;
+	for (i = sizeof(tmp)-2; i > 0 && number > 0; --i) {
+	    tmp[i] = '0' + number % 10;
+	    number /= 10;
+	}
+	softuart_puts(tmp + i + 1);
+    } else {
+	softuart_putchar('0');
+    }
+}
+
 static void _cmd_status()
 {
     unsigned long elapsed;
@@ -232,23 +247,14 @@ static void _cmd_status()
 	elapsed = ticks;
     }
     elapsed = elapsed * timerTick_us / 1000000;
-    char tmp[10];
-    byte i;
-    if (elapsed) {
-	tmp[sizeof(tmp)-1] = 0;
-	for (i = sizeof(tmp)-2; i > 0 && elapsed > 0; --i) {
-	    tmp[i] = '0' + elapsed % 10;
-	    elapsed /= 10;
-	}
-	softuart_puts(tmp + i + 1);
-    } else {
-	softuart_putchar('0');
-    }
+    printnum(elapsed);
+    softuart_puts_P(" / ");
+    printnum(timeoutTicks * timerTick_us / 1000000);
     softuart_puts_P("\r\n");
 
     // Print the last stored timestamp.
     byte c;
-    i = 0;
+    byte i = 0;
     while ((c = read1EEPROM(i++)))
 	softuart_putchar(c);
     softuart_puts_P("\r\n");

@@ -1,3 +1,9 @@
+/*
+Kuža pazi,
+z repom miga,
+vstane, leže, tačko da!
+*/
+
 #include "FastPin.h"
 #include "RecvCmd.h"
 extern "C" {
@@ -138,15 +144,7 @@ int main()
 
     sei();
 
-    _delay_ms(2000);
     RecvCmd<16, CMDNUM> cmdReceiver;
-    softuart_puts_P("\r\n"
-		    "Frugal Watchdog started.\r\n"
-		    "\r\n"
-		    "Kuza pazi,\r\n"
-		    "z repom miga,\r\n"
-		    "vtane, leze, tacko da!\r\n"
-		    "\r\n");
     for (byte i = 0; i < CMDNUM; ++i) {
 	cmdReceiver.addCommand_P(commandStrings[i]);
     }

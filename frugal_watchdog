@@ -29,6 +29,10 @@ if [ -z "$1" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ] ; then
     exit
 fi
 
+if [[ "$_frugal_locked" != "$0" ]] ; then
+    exec env _frugal_locked="$0" flock -e "$serial" "$0" "$@"
+fi
+
 exec 3<> "$serial" || exit $?
 stty 2400 hupcl igncr -icrnl -opost -isig -icanon -iexten -echo < "$serial" || exit $?
 

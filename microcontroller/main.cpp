@@ -63,15 +63,15 @@ static_assert(sizeof(commands) / sizeof(CommandFunc) == CMDNUM,
 
 static void writeEEPROM(byte address, const char* source, byte length)
 {
-   EECR = 0;
-   EEAR = address;
-   for (byte i = 0; i < length; ++i) {
-       EEDR = source[i];
-       FAST_SET(EECR, EEMPE);
-       FAST_SET(EECR, EEPE);
-       while (FAST_GET(EECR, EEPE));
-       EEAR = ++address;
-   }
+    EECR = 0;
+    EEAR = address;
+    for (byte i = 0; i < length; ++i) {
+        EEDR = source[i];
+        FAST_SET(EECR, EEMPE);
+        FAST_SET(EECR, EEPE);
+        while (FAST_GET(EECR, EEPE));
+        EEAR = ++address;
+    }
 }
 
 static void write1EEPROM(byte address, byte c)

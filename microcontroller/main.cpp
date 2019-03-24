@@ -62,12 +62,13 @@ static_assert(sizeof(commands) / sizeof(CommandFunc) == CMDNUM,
 	      "Sizes of command_strings and commands differ.");
 
 
-static void writeEEPROM(byte address, const char* source, byte length)
+static void writeEEPROM(byte address, const void* source, byte length)
 {
+    const char* sourceBytes = (const char*)source;
     EECR = 0;
     EEAR = address;
     for (byte i = 0; i < length; ++i) {
-        EEDR = source[i];
+        EEDR = sourceBytes[i];
         FAST_SET(EECR, EEMPE);
         FAST_SET(EECR, EEPE);
         while (FAST_GET(EECR, EEPE));
@@ -92,26 +93,27 @@ static inline byte read1EEPROM(byte address)
     return EEDR;
 }
 
-/*
-static void readEEPROM(byte address, char* dest, byte length)
+static void readEEPROM(byte address, void* dest, byte length)
 {
+    char* destBytes = (char*)dest;
     EEAR = address;
     for (byte i = 0; i < length; ++i) {
         FAST_SET(EECR, EERE);
-        dest[i] = EEDR;
+        destBytes[i] = EEDR;
         ++EEAR;
     }
 }
-*/
 
 static const ticks_t timerTick_us = 499712;
+
+// Set default timeout of one minute.
+static const ticks_t defaultTimeout = 60 * 1000000 / timerTick_us;
 
 // Variables shared between subroutines.
 static FastPin<4> ledPin;
 static FastPin<3> resetPin;
 
-// Set default timeout of one minute.
-static ticks_t timeoutTicks = 60 * 1000000 / timerTick_us;;
+static ticks_t timeoutTicks;
 static ticks_t ticks = 0;
 
 // The timestamp is meant to be seconds from epoch in decimal, but can
@@ -139,6 +141,8 @@ int main()
     if (0 != read1EEPROM(finalEEPROMAddr)) {
 	_cmd_clearmem();
     }
+
+    readEEPROM(timeoutEEPROMAddr, &timeoutTicks, sizeof(timeoutTicks));
 
     softuart_init();
 
@@ -196,6 +200,7 @@ static void _cmd_setTimeout()
     while (-1 == timeoutReceiver.addChar(softuart_getchar()));
     unsigned int seconds = strtol(timeoutReceiver.buffer(), 0, 0);
     timeoutTicks = seconds * 1000000 / timerTick_us;
+    writeEEPROM(timeoutEEPROMAddr, &timeoutTicks, sizeof(timeoutTicks));
 }
 
 static void _cmd_start()
@@ -271,7 +276,7 @@ static void _cmd_status()
 
 static void _cmd_clearmem()
 {
-    write1EEPROM(0, 0);
+    writeEEPROM(timeoutEEPROMAddr, &defaultTimeout, sizeof(defaultTimeout));
     write1EEPROM(timestampEEPROMAddr, 0);
     write1EEPROM(finalEEPROMAddr, 0);
 }

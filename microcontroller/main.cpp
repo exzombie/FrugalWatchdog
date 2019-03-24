@@ -18,6 +18,7 @@ extern "C" {
 #include <util/atomic.h>
 
 using byte = unsigned char;
+using ticks_t = unsigned long;
 
 // Declaration of commands.
 using CommandFunc = void (*)();
@@ -103,19 +104,27 @@ static void readEEPROM(byte address, char* dest, byte length)
 }
 */
 
-static const unsigned long timerTick_us = 499712;
+static const ticks_t timerTick_us = 499712;
 
 // Variables shared between subroutines.
 static FastPin<4> ledPin;
 static FastPin<3> resetPin;
 
 // Set default timeout of one minute.
-static unsigned long timeoutTicks = 60 * 1000000 / timerTick_us;;
-static unsigned long ticks = 0;
+static ticks_t timeoutTicks = 60 * 1000000 / timerTick_us;;
+static ticks_t ticks = 0;
 
 // The timestamp is meant to be seconds from epoch in decimal, but can
 // be anything really.
 static char lastTimestamp[15];
+
+// EEPROM addresses.
+static constexpr byte timeoutEEPROMAddr = 0;
+static constexpr byte timestampEEPROMAddr =
+    timeoutEEPROMAddr + sizeof(timeoutTicks);
+static constexpr byte finalEEPROMAddr =
+    timestampEEPROMAddr + sizeof(lastTimestamp) + 1;
+
 
 int main()
 {
@@ -127,7 +136,7 @@ int main()
     // Ensure that whatever is in the EEPROM is null-terminated. If it
     // wasn't yet, we have just been flashed so set the stored
     // timestamp to a null string.
-    if (0 != read1EEPROM(sizeof(lastTimestamp))) {
+    if (0 != read1EEPROM(finalEEPROMAddr)) {
 	_cmd_clearmem();
     }
 
@@ -172,8 +181,8 @@ ISR(TIM1_COMPA_vect, ISR_NOBLOCK)
 	FAST_CLR(TIMSK, OCIE1A);
 	ticks = timeoutTicks;
 	byte n = strlen(lastTimestamp);
-	writeEEPROM(0, lastTimestamp, n);
-	write1EEPROM(n, 0);
+	write1EEPROM(timestampEEPROMAddr + n, 0);
+	writeEEPROM(timestampEEPROMAddr, lastTimestamp, n);
 	ledPin.high();
 	resetPin.output();
 	_delay_ms(1000);
@@ -242,7 +251,7 @@ static void printnum(unsigned long number) {
 
 static void _cmd_status()
 {
-    unsigned long elapsed;
+    ticks_t elapsed;
     ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 	elapsed = ticks;
     }
@@ -254,7 +263,7 @@ static void _cmd_status()
 
     // Print the last stored timestamp.
     byte c;
-    byte i = 0;
+    byte i = timestampEEPROMAddr;
     while ((c = read1EEPROM(i++)))
 	softuart_putchar(c);
     softuart_puts_P("\r\n");
@@ -262,6 +271,7 @@ static void _cmd_status()
 
 static void _cmd_clearmem()
 {
-    write1EEPROM(sizeof(lastTimestamp), 0);
     write1EEPROM(0, 0);
+    write1EEPROM(timestampEEPROMAddr, 0);
+    write1EEPROM(finalEEPROMAddr, 0);
 }
